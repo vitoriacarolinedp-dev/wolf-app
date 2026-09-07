@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wolf - Consultor Estudantil</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel para compilar JSX no navegador -->
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- PDF.js para leitura e extração de texto de PDF localmente -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+  <style>
+    /* Fundo adaptável para toda a tela, escondendo rolagem inútil da página pai */
+    html, body, #root { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0; 
+      background-color: #ffffff; 
+      overflow: hidden; /* Trava a rolagem principal para focar no app */
+    }
+    
+    /* Personalização suave da barra de rolagem interna */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Animações personalizadas */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+      animation: fadeInUp 0.4s ease-out forwards;
+    }
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-zoom-in {
+      animation: zoomIn 0.4s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans selection:bg-cyan-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Configurando o Worker do PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    // A chave será injetada automaticamente pela plataforma Canvas
+    const apiKey = ""; 
+
+    // Ícones do Sistema - Compactos
+    const IconWolf = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 21l-5-7-5-4 3-8 4 4h6l4-4 3 8-5 4-5 7z"/><path d="M9 11v.01"/><path d="M15 11v.01"/></svg>;
+    const IconRefresh = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>;
+    const IconMoon = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+    const IconArrowRight = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
+    const IconGradCap = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21.42 10.922a2 2 0 0 1-.01 3.847L12 18.25l-9.41-3.481a2 2 0 0 1-.01-3.847L12 7.5l9.42 3.422Z"/><path d="M12 18.25v4.5"/><path d="M18 13.5v5.5"/></svg>;
+    const IconLayout = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>;
+    const IconBook = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>;
+    const IconBriefcase = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
+    const IconFileText = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>;
+    const IconCloudUp = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>;
+    const IconCheck = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 6 9 17l-5-5"/></svg>;
+    const IconSpinner = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
+    const IconSend = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>;
+    const IconNotebook = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/></svg>;
+
+    // Função core de conexão com o Gemini API
+    const fetchGeminiAPI = async (payload, maxRetries = 3) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+      let delay = 1000;
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
+          const data = await response.json();
+          return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        } catch (error) {
+          if (i === maxRetries - 1) throw error;
+          await new Promise(res => setTimeout(res, delay));
+          delay *= 2;
+        }
+      }
+    };
+
+    // Gera a mensagem inicial lendo o contexto do aluno
+    const getInitialMessageAI = async (projectType, baseMaterial) => {
+      let prompt = "";
+      if (projectType === "Plano de Estudos / Dúvidas") {
+        prompt = `O aluno precisa de ajuda com: ${projectType}. 
+        Aqui está o resumo da matéria, ementa ou dúvida enviada por ele: "${baseMaterial.substring(0, 800)}".
+        
+        Atue como Wolf, um mentor brilhante e encorajador. 
+        Sua tarefa: Dê as boas-vindas com um "Auuuu!", mostre que entendeu o contexto e pergunte qual TÓPICO ou MATÉRIA principal ele deseja focar agora.
+        Fale em Português (PT-BR) usando 'você'. Seja breve, encorajador e direto. Máximo de 3 frases curtas.`;
+      } else {
+        prompt = `O aluno está iniciando um projeto acadêmico do tipo: ${projectType}. 
+        Aqui está um resumo do material, ementa ou disciplina enviada por ele: "${baseMaterial.substring(0, 800)}".
+        
+        Atue como Wolf, um mentor acadêmico brilhante, direto e encorajador. 
+        Sua tarefa: Dê as boas-vindas com um "Auuuu!", mostre que você entendeu o contexto geral do material dele e pergunte qual TEMA específico ele deseja focar para esse tipo de trabalho.
+        Fale em Português (PT-BR) usando 'você'. Seja breve, coerente com o nível de exigência de um ${projectType}. Máximo de 3 frases curtas.`;
+      }
+
+      const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+      try {
+        return await fetchGeminiAPI(payload);
+      } catch (e) {
+        return `Auuuu! O rastro está claro. O que você quer focar com base nessas informações?`;
+      }
+    };
+
+    // Analisa a resposta, barra "sim/não/sla" e conduz estrategicamente
+    const evaluateStudentAnswerAI = async (chatPhase, userMessage, projectType, baseMaterial) => {
+      const wordCount = userMessage.trim().split(/\s+/).length;
+      if (wordCount < 2) {
+        return {
+          respostaMentor: "Grrr... Um verdadeiro lobo precisa de mais de uma palavra para seguir o rastro. Desenvolva melhor a sua ideia e me conte mais detalhes!",
+          respostaAceita: false
+        };
+      }
+
+      let objective = "";
+      const isStudyPlan = projectType === "Plano de Estudos / Dúvidas";
+
+      if (chatPhase === "theme") {
+        objective = isStudyPlan
+          ? "Verificar se o aluno definiu uma MATÉRIA ou TÓPICO DE ESTUDO válido. Se sim, aja como um especialista e pergunte qual a maior DIFICULDADE ou DÚVIDA real que ele tem nisso."
+          : `Verificar se o aluno definiu um TEMA válido. Se sim, aja como um especialista focado em ${projectType}, faça uma conexão rápida do tema com a área, e pergunte qual o PROBLEMA, DOR ou DESAFIO que ele deseja resolver com esse tema.`;
+      } else if (chatPhase === "problem") {
+        objective = isStudyPlan
+          ? "Verificar se o aluno definiu a DIFICULDADE ou DÚVIDA. Se sim, valide e pergunte como é a ROTINA DE ESTUDOS dele ou PRAZO para a prova, para adaptar o plano de ação."
+          : `Verificar se o aluno definiu um PROBLEMA real. Se sim, concorde de forma técnica evidenciando a relevância acadêmica/prática para um ${projectType}, e depois pergunte QUEM sofre com isso (qual é o PÚBLICO-ALVO, OBJETO DE ESTUDO ou CONTEXTO APLICADO).`;
+      } else if (chatPhase === "audience") {
+        objective = isStudyPlan
+          ? "Verificar se o aluno definiu a ROTINA ou PRAZO. Se sim, valide e finalize dizendo 'Auuuu! Rastro completo. Aguarde enquanto eu monto o seu plano de ataque estratégico...'"
+          : `Verificar se o aluno definiu o PÚBLICO-ALVO ou CONTEXTO. Se sim, valide a importância e finalize dizendo 'Auuuu! Rastro completo. Aguarde enquanto eu cruzo as informações para gerar o mapa estratégico...'`;
+      }
+
+      const prompt = `
+        Você é o 'Wolf', um mentor acadêmico exigente e especialista. 
+        Contexto do Aluno - Trabalho: ${projectType}. Material base: "${baseMaterial.substring(0, 600)}".
+        Fase atual do chat: ${chatPhase}.
+        Mensagem do aluno: "${userMessage}".
+        
+        Sua tarefa: ${objective}
+        Nunca diga "Olá" ou cumprimente novamente. Fale diretamente.
+        
+        Retorne a resposta EXATAMENTE no formato JSON abaixo, onde 'respostaAceita' é true se a mensagem do aluno for coerente com a pergunta, ou false se for vaga/sem sentido.
+        {
+          "respostaMentor": "Sua resposta com a persona do Wolf",
+          "respostaAceita": true ou false
+        }
+      `;
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      };
+
+      try {
+        const resultJSON = await fetchGeminiAPI(payload);
+        return JSON.parse(resultJSON);
+      } catch (e) {
+        return { 
+          respostaMentor: "Senti uma interferência no meu faro... Pode me explicar novamente com outras palavras?", 
+          respostaAceita: false 
+        };
+      }
+    };
+
+    // Gera o "Mapa da Mina" com rigor dinâmico baseado no tipo de projeto
+    const generateFinalProjectAI = async (finalData, projectType, baseMaterial) => {
+      
+      let typeSpecificInstructions = "";
+      if (projectType === "Plano de Estudos / Dúvidas") {
+        typeSpecificInstructions = "Você é um especialista em aprendizagem. Foque em criar um cronograma ou roteiro de estudos, sugira técnicas de aprendizagem ativa e esclareça a dúvida principal de forma tática. A 'Dica de Ouro' deve focar em como absorver melhor o conteúdo ou se preparar para testes. Adapte os nomes dos tópicos para fazer sentido para um plano de estudos (ex: O Território = A Matéria, A Ferida = A Dificuldade, A Presa = A Rotina, O Ataque = O Plano de Ação).";
+      } else if (projectType === "TCC / Monografia" || projectType === "Artigo Científico") {
+        typeSpecificInstructions = "Exija 100% de rigor acadêmico, estruturação metodológica formal e exatidão científica. Inclua obrigatoriamente uma 'Dica de Ouro' voltada para impressionar a BANCA avaliadora.";
+      } else if (projectType === "Projeto Interdisciplinar") {
+        typeSpecificInstructions = "Foque no desenvolvimento prático por etapas, preferencialmente usando a metodologia CDIO (Conceber, Projetar, Implementar, Operar). A 'Dica de Ouro' deve focar em como gabaritar a correção integrada dos professores das várias disciplinas.";
+      } else {
+        typeSpecificInstructions = "Foque no desenvolvimento e aplicação direta do conteúdo da matéria. A 'Dica de Ouro' deve focar em clareza e argumentação para tirar a nota máxima na correção do professor da disciplina.";
+      }
+
+      const prompt = `
+        Atue como o Wolf, um orientador acadêmico especialista e implacável na área do aluno.
+        Trabalho: ${projectType}
+        Ementa/Material Base: "${baseMaterial.substring(0, 1000)}"
+        Tema Escolhido: ${finalData.theme}
+        Problema Investigado: ${finalData.problem}
+        Público-Alvo/Objeto: ${finalData.audience}
+
+        Diretriz de Rigor: ${typeSpecificInstructions}
+
+        Sua resposta deve ser PROFUNDA, ESPECÍFICA, coerente, verídica e agregadora.
+        Retorne APENAS o código HTML interno (sem html/head/body). Tags permitidas: <h3>, <h4>, <p>, <ul>, <li>, <strong>, <em>.
+        
+        Estrutura OBRIGATÓRIA:
+        <h3>🐺 [Crie um Título Magnético e Estratégico para o Projeto]</h3>
+        <p><em>[Um parágrafo forte e encorajador do Wolf validando a escolha do projeto e o impacto do problema]</em></p>
+        
+        <h4>📑 O Mapa da Trilha</h4>
+        [Crie de 4 a 5 tópicos em bullet points (<ul><li>) detalhando a estrutura do documento e o que pesquisar. Adapte os passos para o tipo de trabalho (${projectType}). Inclua obrigatoriamente um tópico focado em 'METODOLOGIA', sugerindo qual o melhor caminho verídico para pesquisar esse problema.]
+        
+        <h4>💡 O "Faro de Lobo" (Dica de Ouro)</h4>
+        <p>[Insira aqui a dica prática sobre a banca ou correção conforme a diretriz acima, garantindo impacto imediato.]</p>
+      `;
+
+      const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+      try {
+        let text = await fetchGeminiAPI(payload);
+        text = text.replace(/```html/g, '').replace(/```/g, '').trim();
+        return text;
+      } catch (e) {
+        throw new Error("Falha na geração do HTML final.");
+      }
+    };
+
+    // Formatação de Negrito para as mensagens
+    const formatMessage = (text, role) => {
+      if (!text) return "";
+      const parts = text.split(/\*\*(.*?)\*\*/g);
+      return parts.map((part, index) => 
+        index % 2 === 1 ? (
+          <strong key={index} className={role === 'user' ? 'text-cyan-200 font-bold' : 'text-slate-900 font-bold'}>
+            {part}
+          </strong>
+        ) : part
+      );
+    };
+
+    function App() {
+      const [step, setStep] = useState(0); 
+      const [projectType, setProjectType] = useState("");
+      const [documentsText, setDocumentsText] = useState("");
+      const [fileName, setFileName] = useState("");
+      const [isReadingPDF, setIsReadingPDF] = useState(false);
+      
+      const [chatPhase, setChatPhase] = useState("theme");
+      const [messages, setMessages] = useState([]);
+      const [isTyping, setIsTyping] = useState(false);
+      const [chatInputs, setChatInputs] = useState({ theme: "", problem: "", audience: "" });
+      
+      const [finalProject, setFinalProject] = useState("");
+      const [error, setError] = useState("");
+      const [inputValue, setInputValue] = useState("");
+      const [copied, setCopied] = useState(false);
+      const chatEndRef = useRef(null);
+
+      const projectTypes = [
+        { id: 'TCC / Monografia', Icon: IconGradCap, desc: 'Pesquisa acadêmica profunda e rigorosa' },
+        { id: 'Projeto Interdisciplinar', Icon: IconLayout, desc: 'Aplicação prática integrada (CDIO)' },
+        { id: 'Artigo Científico', Icon: IconBook, desc: 'Focado em referencial e publicação' },
+        { id: 'Trabalho de Disciplina', Icon: IconBriefcase, desc: 'Desenvolvimento focado na ementa' },
+        { id: 'Plano de Estudos / Dúvidas', Icon: IconNotebook, desc: 'Organização de rotina e aprendizagem' }
+      ];
+
+      // Auto-scroll do chat
+      useEffect(() => {
+        if (chatEndRef.current) {
+          chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [messages, isTyping, isReadingPDF]);
+
+      const selectProjectType = (type) => {
+        setProjectType(type);
+        setStep(2);
+      };
+
+      // Gerencia Upload e leitura do PDF
+      const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setFileName(file.name);
+        setError("");
+        
+        try {
+          if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+            setIsReadingPDF(true);
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+              try {
+                const typedarray = new Uint8Array(event.target.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let fullText = "";
+                const maxPages = Math.min(pdf.numPages, 5); // Otimizado para não sobrecarregar
+                
+                for (let i = 1; i <= maxPages; i++) {
+                  const page = await pdf.getPage(i);
+                  const textContent = await page.getTextContent();
+                  const pageText = textContent.items.map(item => item.str).join(" ");
+                  fullText += pageText + "\n";
+                }
+                
+                setDocumentsText(prev => prev + "\n[CONTEÚDO DO ARQUIVO]: " + fullText);
+                setIsReadingPDF(false);
+              } catch (pdfErr) {
+                console.error(pdfErr);
+                setError("Erro ao extrair texto do PDF. Tente colar as instruções manualmente.");
+                setIsReadingPDF(false);
+              }
+            };
+            reader.readAsArrayBuffer(file);
+            
+          } else if (file.type === "text/plain") {
+            const reader = new FileReader();
+            reader.onload = (event) => setDocumentsText(prev => prev + "\n[INSTRUÇÕES]: " + event.target.result);
+            reader.readAsText(file);
+          } else {
+            setError("Formato não suportado. Por favor, envie um PDF ou TXT.");
+          }
+        } catch (err) {
+          setError("Falha ao carregar o arquivo.");
+          setIsReadingPDF(false);
+        }
+      };
+
+      const handleDocumentSubmit = async () => {
+        if (!documentsText.trim() && !fileName) {
+          setError("O Wolf precisa farejar o caminho. Cole a ementa ou anexe o documento.");
+          return;
+        }
+        if (isReadingPDF) {
+          setError("Aguarde, o Wolf ainda está lendo as páginas do seu arquivo...");
+          return;
+        }
+        setError("");
+        setStep(3);
+        
+        setIsTyping(true);
+        const respostaIa = await getInitialMessageAI(projectType, documentsText);
+        setMessages([{ role: 'bot', text: respostaIa }]);
+        setIsTyping(false);
+      };
+
+      const handleChatSubmit = async (e) => {
+        e.preventDefault();
+        if (!inputValue.trim() || isTyping) return;
+
+        const userMessage = inputValue;
+        setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+        setInputValue("");
+        setIsTyping(true);
+
+        const aiResponse = await evaluateStudentAnswerAI(chatPhase, userMessage, projectType, documentsText);
+        
+        setMessages(prev => [...prev, { role: 'bot', text: aiResponse.respostaMentor }]);
+        setIsTyping(false);
+
+        if (aiResponse.respostaAceita) {
+          const updatedInputs = { ...chatInputs, [chatPhase]: userMessage };
+          setChatInputs(updatedInputs);
+          
+          if (chatPhase === "theme") setChatPhase("problem");
+          else if (chatPhase === "problem") setChatPhase("audience");
+          else if (chatPhase === "audience") {
+            setChatPhase("ready");
+            setTimeout(() => {
+              generateFinalProject(updatedInputs);
+            }, 2000);
+          }
+        }
+      };
+
+      const generateFinalProject = async (finalData) => {
+        setStep(4);
+        setError("");
+
+        try {
+          const resultHTML = await generateFinalProjectAI(finalData, projectType, documentsText);
+          setFinalProject(resultHTML);
+          setStep(5);
+        } catch (err) {
+          setError("Grrr... perdi a conexão ao estruturar o mapa. Tente gerar novamente.");
+          setStep(3);
+        }
+      };
+
+      const handleCopy = () => {
+        navigator.clipboard.writeText(document.querySelector('.prose').innerText);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      };
+
+      const restart = () => {
+        setStep(0);
+        setProjectType("");
+        setDocumentsText("");
+        setChatPhase("theme");
+        setMessages([]);
+        setChatInputs({ theme: "", problem: "", audience: "" });
+        setFinalProject("");
+        setInputValue("");
+        setFileName("");
+        setError("");
+        setCopied(false);
+      };
+
+      return (
+        <div className="h-[100dvh] w-full flex flex-col bg-slate-50 text-slate-800 font-sans selection:bg-cyan-200">
+          
+          {/* Header Compacto */}
+          <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-10 border-b border-slate-200 shrink-0">
+            <div className="max-w-4xl mx-auto px-4 py-2.5 md:py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-br from-slate-700 to-slate-900 p-1.5 md:p-2 rounded-lg md:rounded-xl shadow-sm">
+                  <IconWolf className="w-4 h-4 md:w-5 md:h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <h1 className="font-extrabold text-sm md:text-base text-slate-800 tracking-tight leading-none">
+                    Wolf <span className="text-cyan-600">Mentor</span>
+                  </h1>
+                  <span className="text-[8px] md:text-[9px] uppercase font-bold text-cyan-600 tracking-wider">Consultor Estudantil</span>
+                </div>
+              </div>
+              {step > 0 && (
+                <button onClick={restart} className="text-[10px] md:text-xs font-bold text-slate-500 hover:text-cyan-600 transition-colors flex items-center gap-1 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-full">
+                  <IconRefresh className="w-3 h-3 md:w-3.5 md:h-3.5" /> Reiniciar
+                </button>
+              )}
+            </div>
+          </header>
+
+          {/* Área principal fluída para empurrar conteúdo */}
+          <main className="flex-1 overflow-y-auto w-full mx-auto flex flex-col">
+            <div className={`w-full mx-auto flex-1 flex flex-col ${step === 3 ? 'max-w-4xl p-0' : 'max-w-3xl px-4 py-4 md:py-8 justify-center'}`}>
+              
+              {/* Step 0: Intro */}
+              {step === 0 && (
+                <div className="bg-white p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-slate-200 text-center animate-fade-in-up relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 md:h-1.5 bg-gradient-to-r from-slate-600 via-cyan-600 to-blue-800"></div>
+                  
+                  <div className="mx-auto bg-slate-100 w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center mb-4 md:mb-6 border-[3px] border-white shadow-sm relative">
+                    <IconWolf className="w-8 h-8 md:w-10 md:h-10 text-slate-700" />
+                    <div className="absolute -bottom-1 -right-1 md:-bottom-1 md:-right-1 bg-slate-800 w-5 h-5 md:w-6 md:h-6 rounded-full border-2 border-white flex items-center justify-center">
+                       <IconMoon className="w-2.5 h-2.5 md:w-3 md:h-3 text-cyan-400" />
+                    </div>
+                  </div>
+                  
+                  <h2 className="text-xl md:text-2xl font-extrabold text-slate-800 mb-2 md:mb-3 leading-tight">O faro estratégico <br className="hidden md:block"/>para o seu projeto.</h2>
+                  <p className="text-slate-500 text-xs md:text-sm mb-5 md:mb-6 max-w-sm mx-auto leading-relaxed">
+                    Olá. Eu sou o <strong>Wolf</strong>, líder da alcateia acadêmica. Vamos cruzar suas ideias com a teoria e estruturar um projeto impossível de ser ignorado.
+                  </p>
+                  
+                  <button 
+                    onClick={() => setStep(1)}
+                    className="bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-cyan-50 font-bold py-2.5 px-6 md:py-3 md:px-8 rounded-full shadow-md shadow-slate-300 transition-all flex items-center justify-center gap-2 mx-auto text-xs md:text-sm hover:scale-105 active:scale-95 w-full sm:w-auto"
+                  >
+                    Iniciar a Trilha <IconArrowRight className="w-4 h-4 md:w-4 md:h-4 text-cyan-400" />
+                  </button>
+                </div>
+              )}
+
+              {/* Step 1: Project Type */}
+              {step === 1 && (
+                <div className="animate-fade-in-up w-full">
+                  <h2 className="text-xl md:text-2xl font-extrabold text-slate-800 mb-1.5 md:mb-2 text-center">O que vamos caçar hoje? 🐺</h2>
+                  <p className="text-slate-500 text-center mb-4 md:mb-6 text-xs md:text-sm">Defina o formato do projeto para alinharmos a estratégia.</p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
+                    {projectTypes.map((type) => {
+                      const TargetIcon = type.Icon;
+                      return (
+                        <button 
+                          key={type.id}
+                          onClick={() => selectProjectType(type.id)}
+                          className="bg-white border-2 border-slate-100 p-3.5 md:p-4 rounded-xl md:rounded-2xl hover:border-slate-800 hover:shadow-md transition-all text-left group relative overflow-hidden"
+                        >
+                          <div className="absolute top-0 right-0 p-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <IconArrowRight className="w-4 h-4 text-cyan-600" />
+                          </div>
+                          <div className="bg-slate-100 w-10 h-10 rounded-lg flex items-center justify-center mb-2.5 group-hover:bg-slate-800 transition-colors duration-300">
+                            <TargetIcon className="w-5 h-5 md:w-6 md:h-6 text-slate-700 group-hover:text-cyan-400 transition-colors duration-300" />
+                          </div>
+                          <h3 className="font-bold text-slate-800 text-sm md:text-base mb-1">{type.id}</h3>
+                          <p className="text-slate-500 text-[10px] md:text-xs leading-tight">{type.desc}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Documents */}
+              {step === 2 && (
+                <div className="bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-slate-200 animate-fade-in-up">
+                  <div className="flex items-center gap-3 mb-4 md:mb-5">
+                    <div className="bg-slate-100 p-2.5 rounded-lg shrink-0">
+                      <IconFileText className="w-5 h-5 md:w-6 md:h-6 text-slate-700" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg md:text-xl font-extrabold text-slate-800 mb-0.5">Materiais da Disciplina</h2>
+                      <p className="text-slate-500 text-xs leading-snug">O Wolf precisa das regras. Anexe o edital ou ementa para o seu <span className="font-bold text-slate-800">{projectType}</span>.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4 relative border-2 border-dashed border-slate-300 hover:border-slate-500 rounded-xl md:rounded-2xl p-4 md:p-6 bg-slate-50 text-center transition-colors group cursor-pointer overflow-hidden">
+                    <input 
+                      type="file" 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      onChange={handleFileUpload}
+                      accept=".txt,.pdf"
+                    />
+                    {isReadingPDF ? (
+                      <div className="flex flex-col items-center">
+                        <IconSpinner className="w-6 h-6 md:w-7 md:h-7 animate-spin text-cyan-600 mb-2" />
+                        <p className="text-cyan-600 font-bold text-xs md:text-sm mb-0.5">🐾 O Wolf está lendo...</p>
+                        <p className="text-slate-500 text-[10px]">Extraindo o texto do arquivo.</p>
+                      </div>
+                    ) : fileName ? (
+                      <div className="flex flex-col items-center">
+                        <IconCheck className="w-6 h-6 md:w-7 md:h-7 text-emerald-500 mb-2" />
+                        <p className="text-emerald-600 font-bold text-xs md:text-sm mb-0.5">📄 {fileName} anexado!</p>
+                        <p className="text-slate-500 text-[10px]">Toque para trocar o arquivo, se desejar.</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <IconCloudUp className="w-7 h-7 md:w-8 md:h-8 text-slate-400 mb-2 group-hover:text-cyan-600 transition-colors" />
+                        <p className="text-slate-600 font-bold text-xs md:text-sm">Toque aqui para anexar a ementa (PDF/TXT)</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-px bg-slate-200 flex-1"></div>
+                    <span className="text-slate-400 font-bold text-[9px] text-center uppercase tracking-wider">Ou digite detalhes abaixo</span>
+                    <div className="h-px bg-slate-200 flex-1"></div>
+                  </div>
+
+                  <textarea
+                    value={documentsText}
+                    onChange={(e) => setDocumentsText(e.target.value)}
+                    placeholder="Se preferir, cole o texto das exigências do professor aqui..."
+                    className="w-full h-20 md:h-24 p-3 md:p-4 rounded-xl md:rounded-2xl border-2 border-slate-200 focus:border-slate-800 focus:ring-2 focus:ring-slate-100 outline-none resize-none text-slate-700 bg-white mb-4 transition-all text-xs md:text-sm leading-relaxed"
+                  ></textarea>
+                  
+                  {error && <p className="text-red-600 text-xs mb-4 font-bold bg-red-50 p-2 md:p-3 rounded-lg">{error}</p>}
+                  
+                  <div className="flex justify-end">
+                    <button 
+                      onClick={handleDocumentSubmit}
+                      disabled={isReadingPDF}
+                      className="bg-slate-800 w-full sm:w-auto justify-center disabled:bg-slate-300 hover:bg-slate-900 text-cyan-50 font-bold py-2.5 px-5 md:py-3 md:px-6 rounded-full transition-all flex items-center gap-2 text-xs md:text-sm shadow-md hover:scale-105"
+                    >
+                      Acordar o Lobo <IconArrowRight className="w-4 h-4 text-cyan-400" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Chat Fluido Ocupando Todo o Espaço */}
+              {step === 3 && (
+                <div className="bg-white flex flex-col flex-1 w-full animate-fade-in-up">
+                  <div className="bg-slate-900 text-white p-3 flex items-center justify-between border-b border-slate-800 shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative">
+                        <div className="bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center border border-slate-700 shadow-sm">
+                          <IconWolf className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-slate-900 rounded-full"></div>
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-xs md:text-sm">Wolf</h3>
+                        <p className="text-[9px] text-slate-400 font-medium">Líder Estratégico • Especialista</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                    {messages.map((msg, idx) => (
+                      <div key={idx} className={`flex gap-2 max-w-[90%] md:max-w-[80%] ${msg.role === 'user' ? 'ml-auto justify-end' : ''}`}>
+                        {msg.role === 'bot' && (
+                          <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-0.5 border border-slate-300">
+                            <IconWolf className="w-3.5 h-3.5 text-slate-700" />
+                          </div>
+                        )}
+                        <div className={`p-3 rounded-2xl text-xs md:text-sm leading-relaxed shadow-sm font-medium ${
+                          msg.role === 'user' 
+                            ? 'bg-slate-800 text-cyan-50 rounded-tr-sm' 
+                            : 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm'
+                        }`} dangerouslySetInnerHTML={{ __html: formatMessage(msg.text, msg.role).map(el => typeof el === 'string' ? el : el.props.children.length ? `<strong>${el.props.children}</strong>` : '').join('') }}>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {isTyping && (
+                      <div className="flex gap-2 max-w-[90%] md:max-w-[80%] animate-fade-in-up">
+                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-0.5 border border-slate-300">
+                          <IconWolf className="w-3.5 h-3.5 text-slate-700" />
+                        </div>
+                        <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1.5">
+                          <div className="flex space-x-1">
+                            <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  <div className="p-2.5 md:p-3 bg-white border-t border-slate-200 shrink-0">
+                    <form onSubmit={handleChatSubmit} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        placeholder="Responda para o Wolf..."
+                        disabled={isTyping || chatPhase === "ready"}
+                        className="flex-1 bg-slate-100 border border-transparent focus:bg-white rounded-full px-4 py-2 md:py-2.5 text-xs md:text-sm focus:outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-50 transition-all disabled:opacity-50 text-slate-800"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!inputValue.trim() || isTyping || chatPhase === "ready"}
+                        className="bg-slate-800 hover:bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-full w-9 h-9 md:w-10 md:h-10 flex items-center justify-center transition-all shrink-0 shadow-sm"
+                      >
+                        <IconSend className="w-4 h-4 text-cyan-400" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Loading Final */}
+              {step === 4 && (
+                <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-slate-200 text-center animate-fade-in-up flex flex-col items-center justify-center min-h-[250px]">
+                  <div className="relative mb-4">
+                     <IconMoon className="w-10 h-10 md:w-12 md:h-12 text-slate-300 animate-pulse" />
+                     <IconWolf className="w-6 h-6 md:w-8 md:h-8 text-slate-800 absolute -bottom-1 -right-1" />
+                  </div>
+                  <h2 className="text-lg md:text-xl font-extrabold text-slate-800 mb-1">Mapeando a trilha...</h2>
+                  <p className="text-slate-500 text-xs md:text-sm font-medium">O Wolf está alinhando táticas e metodologia com as exigências acadêmicas.</p>
+                </div>
+              )}
+
+              {/* Step 5: Result com Dica do Notebook */}
+              {step === 5 && (
+                <div className="bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-slate-200 animate-zoom-in w-full">
+                  <div className="flex flex-col items-center justify-center text-center mb-6 md:mb-8 pb-5 md:pb-6 border-b border-slate-100">
+                    <div className="bg-cyan-50 p-3 md:p-4 rounded-full mb-3 shadow-sm border border-cyan-100">
+                      <IconWolf className="w-6 h-6 md:w-8 md:h-8 text-cyan-600" />
+                    </div>
+                    <h2 className="text-xl md:text-2xl font-extrabold text-slate-800 mb-1.5 tracking-tight">O mapa da mina está pronto!</h2>
+                    <p className="text-slate-500 text-xs md:text-sm max-w-sm font-medium">Sua ideia moldada numa estrutura 100% tática para o seu curso. (Auuuu! 🐺)</p>
+                  </div>
+                  
+                  <div 
+                    className="prose prose-sm md:prose-base prose-slate max-w-none 
+                                 prose-h3:text-lg md:prose-h3:text-xl prose-h3:font-extrabold prose-h3:mb-3 prose-h3:text-slate-900
+                                 prose-h4:text-base md:prose-h4:text-lg prose-h4:font-bold prose-h4:text-slate-800 prose-h4:mt-6 prose-h4:mb-2.5
+                                 prose-p:text-slate-600 prose-p:leading-relaxed prose-p:mb-3 prose-p:font-medium prose-p:text-sm
+                                 prose-ul:list-none prose-ul:pl-0 prose-ul:space-y-2 prose-ul:mb-5
+                                 prose-li:text-slate-700 prose-li:bg-slate-50 prose-li:px-3.5 prose-li:py-2.5 prose-li:rounded-xl prose-li:border prose-li:border-slate-200 prose-li:font-medium prose-li:text-sm
+                                 prose-strong:font-bold prose-strong:text-cyan-700"
+                    dangerouslySetInnerHTML={{ __html: finalProject }} 
+                  />
+
+                  {/* Study Notebook CTA */}
+                  <div className="mt-6 md:mt-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[1rem] md:rounded-[1.5rem] p-4 md:p-6 shadow-lg relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-3 opacity-5">
+                      <IconNotebook className="w-20 h-20 md:w-28 md:h-28 text-cyan-400" />
+                    </div>
+                    
+                    <div className="relative z-10 flex flex-col md:flex-row items-center gap-4 md:gap-5">
+                      <div className="bg-slate-700/50 p-3 rounded-xl shrink-0 backdrop-blur-sm border border-slate-600 flex items-center justify-center">
+                        <IconNotebook className="w-6 h-6 md:w-8 md:h-8 text-cyan-400" />
+                      </div>
+                      <div className="flex-1 text-center md:text-left">
+                        <h4 className="font-extrabold text-base md:text-lg text-white mb-1">Próximo Passo</h4>
+                        <p className="text-slate-300 text-xs md:text-sm mb-4 leading-relaxed">
+                          Copie o mapa estratégico estruturado pelo Wolf e leve para o seu <strong>Study Notebooks</strong> (ou sua ferramenta preferida). Use este roteiro como alicerce para guiar <strong>o seu próprio aprendizado, redação e pesquisa</strong>. O rastro está claro, agora a caçada é sua!
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
+                          <button 
+                            onClick={handleCopy}
+                            className={`w-full sm:w-auto font-bold py-2 md:py-2.5 px-4 md:px-6 rounded-full transition-colors text-xs md:text-sm shadow-md flex items-center justify-center gap-1.5 ${copied ? 'bg-emerald-500 text-white hover:bg-emerald-400' : 'bg-cyan-500 text-slate-900 hover:bg-cyan-400'}`}
+                          >
+                            {copied ? <><IconCheck className="w-3 h-3 md:w-4 md:h-4"/> Copiado!</> : 'Copiar Estrutura'}
+                          </button>
+                          <button 
+                            onClick={restart}
+                            className="w-full sm:w-auto bg-transparent hover:bg-slate-700 text-white border-2 border-slate-600 font-bold py-2 md:py-2.5 px-4 md:px-6 text-xs md:text-sm rounded-full transition-colors"
+                          >
+                            Nova Estratégia
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
